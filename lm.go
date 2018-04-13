@@ -111,7 +111,10 @@ func GluesMc(lmStru *LmStru) (err error) {
 		rv := rresultNone.MapIndex(rpNone)
 		if rv.IsValid() {
 			rresult.SetMapIndex(rpNone, rv)
-			v, _ := json.Marshal(rv.Interface())
+			v, errIgnore := json.Marshal(rv.Interface())
+			if errIgnore != nil {
+				continue
+			}
 			conn.Do("SETEX", key4mc, expire4mc, v)
 		} else {
 			conn.Do("SETEX", key4mc, expire4mc, "null")
@@ -132,7 +135,7 @@ func GlueMc(lmStru *LmStru) (err error) {
 	defer conn.Close()
 	v, errIgnore := redis.String(conn.Do("GET", key4mc))
 	if errIgnore == nil {
-		json.Unmarshal([]byte(v), &result)
+		err = json.Unmarshal([]byte(v), &result)
 		return
 	} else if errIgnore != redis.ErrNil {
 		err = errIgnore
@@ -144,8 +147,16 @@ func GlueMc(lmStru *LmStru) (err error) {
 		return
 	}
 
-	vs, _ := json.Marshal(result)
-	conn.Do("SETEX", key4mc, expire4mc, vs)
+	vs, err := json.Marshal(result)
+	if err != nil {
+		return
+	}
+
+	_, err = conn.Do("SETEX", key4mc, expire4mc, vs)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
